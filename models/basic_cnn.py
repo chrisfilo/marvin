@@ -24,7 +24,7 @@ def model_fn(features, labels, mode, params):
     layer_fc1 = tf.contrib.layers.fully_connected(layer_flat, num_outputs=2)
 
     y_pred = tf.nn.softmax(layer_fc1, name="y_pred")
-    predictions = tf.argmax(y_pred, dimension=1)
+    predictions = tf.argmax(y_pred, axis=1)
 
     if mode == tf.estimator.ModeKeys.PREDICT:
         return tf.estimator.EstimatorSpec(
@@ -33,7 +33,7 @@ def model_fn(features, labels, mode, params):
         )
     else:
         labels = tf.Print(labels, [labels], message="This is labels: ")
-        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
+        cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(
             logits=layer_fc1,
             labels=tf.one_hot(indices=labels, depth=2))
         loss = tf.reduce_mean(cross_entropy)
@@ -52,5 +52,8 @@ def model_fn(features, labels, mode, params):
             mode=mode,
             predictions=predictions,
             loss=loss,
-            train_op=train_op
+            train_op=train_op,
+            # eval_metric_ops={
+            #     "accuracy": tf.metrics.accuracy(
+            #         labels=labels, predictions=predictions)}
         )
