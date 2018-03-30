@@ -1,3 +1,4 @@
+import warnings
 from glob import glob
 import tensorflow as tf
 import os
@@ -41,9 +42,11 @@ def _get_data(nthreads, batch_size, src_folder, n_epochs, cache_prefix,
         data = nii.get_data()
         data[np.isnan(data)] = 0
         nii = nb.Nifti1Image(data, nii.affine)
-        nii = image.resample_img(nii,
-                                 target_affine=target_affine,
-                                 target_shape=target_shape)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            nii = image.resample_img(nii,
+                                     target_affine=target_affine,
+                                     target_shape=target_shape)
         data = nii.get_data().astype(np.float32)
 
         return data
@@ -52,34 +55,47 @@ def _get_data(nthreads, batch_size, src_folder, n_epochs, cache_prefix,
         lambda path: tuple(tf.py_func(_read_and_resample,
                                       [path, target_affine_tf,
                                        target_shape_tf],
-                                      [tf.float32])),
+                                      [tf.float32], name="read_and_resample")),
         num_parallel_calls=nthreads)
 
-    def _reshape(data):
+    def _reshape_images(data):
         return tf.reshape(data, target_shape)
 
-    data_ds = data_ds.map(_reshape, num_parallel_calls=nthreads)
+    data_ds = data_ds.map(_reshape_images, num_parallel_calls=nthreads)
 
     def _get_label(path):
         path_str = path.decode('utf-8')
         df = pd.read_csv(
             "D:/data/PAC_Data/PAC_Data/PAC2018_Covariates_Upload.csv")
         PAC_ID = path_str.split(os.sep)[-1].split('.')[0]
-        label = int(df[df.PAC_ID == PAC_ID]['Label'])
+        label = int(df[df.PAC_ID == PAC_ID]['Label']) - 1
         return label
 
     labels_ds = paths_ds.map(
         lambda path: tuple(tf.py_func(_get_label,
                                       [path],
-                                      [tf.int32])),
+                                      [tf.int32], name="get_label")),
         num_parallel_calls=nthreads)
+
+    def _reshape_labels(labels):
+        return tf.reshape(labels, [])
+
+    labels_ds = labels_ds.map(_reshape_labels, num_parallel_calls=nthreads)
 
     dataset = tf.data.Dataset.zip((data_ds, labels_ds))
 
-    dataset = dataset.cache(cache_prefix)
+    # Sanity check uncomment those lines to zero values for one label
+    # making the classfication task trivial
+    #def _zero(data, label):
+    #    return tf.multiply(data, tf.cast(label, tf.float32)), label
+    #
+    #dataset = dataset.map(_zero)
+
+    if cache_prefix:
+        dataset = dataset.cache(cache_prefix)
 
     if shuffle:
-        dataset = dataset.shuffle(buffer_size=1000)
+        dataset = dataset.shuffle(buffer_size=100)
     dataset = dataset.batch(batch_size)
     dataset = dataset.repeat(n_epochs)
     return dataset

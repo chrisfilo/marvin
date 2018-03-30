@@ -2,58 +2,53 @@ import tensorflow as tf
 
 name = "basic_cnn"
 
+# 3D version of https://github.com/aymericdamien/TensorFlow-Examples/blob/master/examples/3_NeuralNetworks/convolutional_network.py
+
 def model_fn(features, labels, mode, params):
 
     features = tf.expand_dims(features, -1)
 
-    layer_conv1 = tf.layers.conv3d(inputs=features,
-                                   filters=32,
-                                   kernel_size=3,
-                                   padding='same',
-                                   bias_initializer=tf.random_normal_initializer(0, 0.02),
-                                   use_bias=True,
-                                   kernel_initializer=tf.random_normal_initializer(0, 0.02))
+    # Convolution Layer with 32 filters and a kernel size of 5
+    conv1 = tf.layers.conv3d(features, 32, 5, activation=tf.nn.relu)
+    # Max Pooling (down-sampling) with strides of 2 and kernel size of 2
+    conv1 = tf.layers.max_pooling3d(conv1, 2, 2)
 
-    layer_maxpool1 = tf.layers.max_pooling3d(inputs=layer_conv1,
-                                             pool_size=2,
-                                             strides=2,
-                                             padding='same')
-    layer_relu1 = tf.nn.relu(layer_maxpool1)
+    # Convolution Layer with 64 filters and a kernel size of 3
+    conv2 = tf.layers.conv3d(conv1, 64, 3, activation=tf.nn.relu)
+    # Max Pooling (down-sampling) with strides of 2 and kernel size of 2
+    conv2 = tf.layers.max_pooling3d(conv2, 2, 2)
 
-    layer_flat = tf.layers.flatten(layer_relu1)
-    layer_fc1 = tf.contrib.layers.fully_connected(layer_flat, num_outputs=2)
+    # Flatten the data to a 1-D vector for the fully connected layer
+    fc1 = tf.contrib.layers.flatten(conv2)
 
-    y_pred = tf.nn.softmax(layer_fc1, name="y_pred")
-    predictions = tf.argmax(y_pred, axis=1)
+    # Fully connected layer (in tf contrib folder for now)
+    fc1 = tf.layers.dense(fc1, 1024)
+    # Apply Dropout (if is_training is False, dropout is not applied)
+    fc1 = tf.layers.dropout(fc1, rate=0.25,
+                            training=(mode == tf.estimator.ModeKeys.TRAIN))
+
+    # Output layer, class prediction
+    out = tf.layers.dense(fc1, 2)
+
+    pred_classes = tf.argmax(out, axis=1)
+    pred_probas = tf.nn.softmax(out)
 
     if mode == tf.estimator.ModeKeys.PREDICT:
-        return tf.estimator.EstimatorSpec(
-            mode=mode,
-            predictions=predictions
-        )
+        return tf.estimator.EstimatorSpec(mode=mode, predictions=pred_classes)
     else:
-        labels = tf.Print(labels, [labels], message="This is labels: ")
-        cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(
-            logits=layer_fc1,
-            labels=tf.one_hot(indices=labels, depth=2))
-        loss = tf.reduce_mean(cross_entropy)
+        loss_op = tf.reduce_mean(
+            tf.nn.sparse_softmax_cross_entropy_with_logits(
+                logits=out, labels=labels))
+        optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
+        train_op = optimizer.minimize(loss_op,
+                                      global_step=tf.train.get_global_step())
 
-        # Add a scalar summary for the snapshot loss.
-        # Create the gradient descent optimizer with the given learning rate.
-        optimizer = tf.train.AdamOptimizer(params.learning_rate)
-        # Use the optimizer to apply the gradients that minimize the loss
-        # (and also increment the global step counter) as a single training step.
-        extra_update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        with tf.control_dependencies(extra_update_ops):
-            train_op = optimizer.minimize(loss,
-                                          global_step=tf.train.get_global_step())
+        # Evaluate the accuracy of the model
+        acc_op = tf.metrics.accuracy(labels=labels, predictions=pred_classes)
 
         return tf.estimator.EstimatorSpec(
             mode=mode,
-            predictions=predictions,
-            loss=loss,
+            loss=loss_op,
             train_op=train_op,
-            # eval_metric_ops={
-            #     "accuracy": tf.metrics.accuracy(
-            #         labels=labels, predictions=predictions)}
+            eval_metric_ops={'accuracy': acc_op}
         )
