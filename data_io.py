@@ -9,13 +9,12 @@ import pandas as pd
 
 
 def _get_resize_arg(target_shape):
-    mni_shape_mm = np.array([148.0, 184.0, 156.0])
-    target_resolution_mm = np.ceil(
-        mni_shape_mm / np.array(target_shape)).astype(
-        np.int32)
-    target_affine = np.array([[4., 0., 0., -75.],
-                              [0., 4., 0., -105.],
-                              [0., 0., 4., -70.],
+    mni_shape_mm = np.array([144.0, 174.0, 150.0])
+    target_resolution_mm = mni_shape_mm / np.array(target_shape)
+    print(target_resolution_mm)
+    target_affine = np.array([[4., 0., 0., -70.],
+                              [0., 4., 0., -103.],
+                              [0., 0., 4., -65.],
                               [0., 0., 0., 1.]])
     target_affine[0, 0] = target_resolution_mm[0]
     target_affine[1, 1] = target_resolution_mm[1]
