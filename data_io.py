@@ -93,6 +93,12 @@ def _get_data(nthreads, batch_size, src_folder, n_epochs, cache_prefix,
     if cache_prefix:
         dataset = dataset.cache(cache_prefix)
 
+    # balance classes
+    dataset = dataset.apply(tf.contrib.data.rejection_resample(lambda _, label: label,
+                                                               [0.5, 0.5]))
+    # see https://stackoverflow.com/a/47056930/616300
+    dataset = dataset.map(lambda _, data: (data))
+
     if shuffle:
         dataset = dataset.shuffle(buffer_size=100)
     dataset = dataset.batch(batch_size)
