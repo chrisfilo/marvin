@@ -11,7 +11,6 @@ import pandas as pd
 def _get_resize_arg(target_shape):
     mni_shape_mm = np.array([144.0, 174.0, 150.0])
     target_resolution_mm = mni_shape_mm / np.array(target_shape)
-    print(target_resolution_mm)
     target_affine = np.array([[4., 0., 0., -70.],
                               [0., 4., 0., -103.],
                               [0., 0., 4., -65.],
