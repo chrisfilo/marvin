@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-name = "basic_cnn_v2"
+name = "basic_cnn_v3"
 
 # 3D version of https://github.com/aymericdamien/TensorFlow-Examples/blob/master/examples/3_NeuralNetworks/convolutional_network.py
 
@@ -10,14 +10,14 @@ def model_fn(features, labels, mode, params):
 
     # Convolution Layer with 32 filters and a kernel size of 5
     conv1 = tf.layers.conv3d(features, 32, 5, activation=tf.nn.relu)
-    conv1 = tf.layers.dropout(conv1, rate=0.25,
+    conv1 = tf.layers.dropout(conv1, rate=0.5,
                               training=(mode == tf.estimator.ModeKeys.TRAIN))
     # Max Pooling (down-sampling) with strides of 2 and kernel size of 2
     conv1 = tf.layers.max_pooling3d(conv1, 2, 2)
 
     # Convolution Layer with 64 filters and a kernel size of 3
     conv2 = tf.layers.conv3d(conv1, 64, 3, activation=tf.nn.relu)
-    conv2 = tf.layers.dropout(conv2, rate=0.25,
+    conv2 = tf.layers.dropout(conv2, rate=0.5,
                               training=(mode == tf.estimator.ModeKeys.TRAIN))
     # Max Pooling (down-sampling) with strides of 2 and kernel size of 2
     conv2 = tf.layers.max_pooling3d(conv2, 2, 2)
@@ -28,7 +28,7 @@ def model_fn(features, labels, mode, params):
     # Fully connected layer (in tf contrib folder for now)
     fc1 = tf.layers.dense(fc1, 1024)
     # Apply Dropout (if is_training is False, dropout is not applied)
-    fc1 = tf.layers.dropout(fc1, rate=0.25,
+    fc1 = tf.layers.dropout(fc1, rate=0.5,
                             training=(mode == tf.estimator.ModeKeys.TRAIN))
 
     # Output layer, class prediction
