@@ -25,14 +25,14 @@ if __name__ == '__main__':
                         train_cache_prefix="D:/drive/workspace/marvin/cache_train",
                         eval_src_folder="D:/data/PAC_Data/PAC_data/eval",
                         eval_cache_prefix="D:/drive/workspace/marvin/cache_eval",
-                        batch_size=25
+                        batch_size=20
                         )
 
     train_spec = tf.estimator.TrainSpec(input_fn=ds.train_input_fn)
     eval_spec = tf.estimator.EvalSpec(input_fn=ds.eval_input_fn,
                                       steps=None,
                                       start_delay_secs=0,
-                                      throttle_secs=1200)
+                                      throttle_secs=120)
 
     estimator = tf.estimator.Estimator(model_fn=model.model_fn,
                                        params=params,
