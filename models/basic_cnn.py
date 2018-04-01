@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-name = "basic_cnn_v4"
+name = "basic_cnn_v5"
 
 # 3D version of https://github.com/aymericdamien/TensorFlow-Examples/blob/master/examples/3_NeuralNetworks/convolutional_network.py
 
@@ -23,11 +23,11 @@ def model_fn(features, labels, mode, params):
     conv2 = tf.layers.max_pooling3d(conv2, 2, 2)
 
     # Convolution Layer with 64 filters and a kernel size of 3
-    conv3 = tf.layers.conv3d(conv1, 64, 3, activation=tf.nn.relu)
-    conv3 = tf.layers.dropout(conv2, rate=0.3,
+    conv3 = tf.layers.conv3d(conv2, 64, 3, activation=tf.nn.relu)
+    conv3 = tf.layers.dropout(conv3, rate=0.3,
                               training=(mode == tf.estimator.ModeKeys.TRAIN))
     # Max Pooling (down-sampling) with strides of 2 and kernel size of 2
-    conv3 = tf.layers.max_pooling3d(conv2, 2, 2)
+    conv3 = tf.layers.max_pooling3d(conv3, 2, 2)
 
     # Flatten the data to a 1-D vector for the fully connected layer
     fc1 = tf.contrib.layers.flatten(conv3)
