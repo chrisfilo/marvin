@@ -32,7 +32,7 @@ if __name__ == '__main__':
     eval_spec = tf.estimator.EvalSpec(input_fn=ds.eval_input_fn,
                                       steps=None,
                                       start_delay_secs=0,
-                                      throttle_secs=120)
+                                      throttle_secs=1200)
 
     estimator = tf.estimator.Estimator(model_fn=model.model_fn,
                                        params=params,
