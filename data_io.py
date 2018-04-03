@@ -61,17 +61,18 @@ def _get_data(nthreads, batch_size, src_folder, n_epochs, cache_prefix,
 
     data_ds = data_ds.map(_reshape_images, num_parallel_calls=nthreads)
 
-    def _get_label(path):
+    def _get_label(path, src_folder):
+        label_dir = os.path.dirname(src_folder).decode('utf-8')
         path_str = path.decode('utf-8')
-        df = pd.read_csv(
-            "D:/data/PAC_Data/PAC_Data/PAC2018_Covariates_Upload.csv")
+        df = pd.read_csv(os.path.join(label_dir,
+                                      "PAC2018_Covariates_Upload.csv"))
         PAC_ID = path_str.split(os.sep)[-1].split('.')[0]
         label = int(df[df.PAC_ID == PAC_ID]['Label']) - 1
-        return label
+        return np.int32(label)
 
     labels_ds = paths_ds.map(
         lambda path: tuple(tf.py_func(_get_label,
-                                      [path],
+                                      [path, src_folder],
                                       [tf.int32], name="get_label")),
         num_parallel_calls=nthreads)
 
@@ -148,3 +149,42 @@ class InputFnFactory:
                                   src_folder=self.eval_src_folder,
                                   shuffle=False,
                                   n_epochs=1)
+
+def split_data(base_dir, eval_prop=.2):
+    """
+    Moves data files from their base directory to "train" and "eval" 
+    subdirectories
+    
+    Args:
+        base_dir: str, path where data files are stored before sorting
+        eval_prop: proportion of files to be used for evaluation. The total
+            number of files will be determined by the *less frequent*
+            category to ensure an even split
+    """
+    data = pd.read_csv(os.path.join(base_dir, "PAC2018_Covariates_Upload.csv"))
+    # number of smaller class
+    N = int(np.sum(data.Label==2)*eval_prop)
+    
+    first_class = np.where(data.Label==1)[0][0:N]
+    second_class = np.where(data.Label==2)[0][0:N]
+    first_class_files = data.iloc[first_class,0]
+    second_class_files = data.iloc[second_class,0]
+    
+    # move files
+    train_loc = os.path.join(base_dir, 'train')
+    eval_loc = os.path.join(base_dir, 'eval')
+    # make training and eval directories if necessary
+    os.makedirs(train_loc, exist_ok=True)
+    os.makedirs(eval_loc, exist_ok=True)
+    
+    # move eval files
+    for filey in first_class_files:
+        os.rename(os.path.join(base_dir, filey+'.nii'),
+                  os.path.join(eval_loc, filey+'.nii'))
+    for filey in second_class_files:
+        os.rename(os.path.join(base_dir, filey+'.nii'),
+                  os.path.join(eval_loc, filey+'.nii'))
+    # move the rest to training
+    for filey in glob(os.path.join(base_dir, '*.nii')):
+        name = os.path.basename(filey)
+        os.rename(filey, os.path.join(train_loc, name))
