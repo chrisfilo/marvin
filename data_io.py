@@ -61,17 +61,18 @@ def _get_data(nthreads, batch_size, src_folder, n_epochs, cache_prefix,
 
     data_ds = data_ds.map(_reshape_images, num_parallel_calls=nthreads)
 
-    def _get_label(path):
+    def _get_label(path, src_folder):
+        label_dir = os.path.dirname(src_folder).decode('utf-8')
         path_str = path.decode('utf-8')
-        df = pd.read_csv(
-            "D:/data/PAC_Data/PAC_Data/PAC2018_Covariates_Upload.csv")
+        df = pd.read_csv(os.path.join(label_dir,
+                                      "PAC2018_Covariates_Upload.csv"))
         PAC_ID = path_str.split(os.sep)[-1].split('.')[0]
         label = int(df[df.PAC_ID == PAC_ID]['Label']) - 1
-        return label
+        return np.int32(label)
 
     labels_ds = paths_ds.map(
         lambda path: tuple(tf.py_func(_get_label,
-                                      [path],
+                                      [path, src_folder],
                                       [tf.int32], name="get_label")),
         num_parallel_calls=nthreads)
 
