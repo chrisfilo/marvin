@@ -22,7 +22,7 @@ if __name__ == '__main__':
     run_config = tf.estimator.RunConfig(model_dir=model_dir)
 
     params = tf.contrib.training.HParams(
-        target_shape=(32, 32, 32),
+        target_shape=(72, 72, 72),
         model_dir=model_dir
     )
 
