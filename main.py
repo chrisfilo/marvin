@@ -1,4 +1,6 @@
 import os
+import warnings
+
 import tensorflow as tf
 import models.basic_cnn as model
 from data_io import InputFnFactory, _get_data
@@ -15,7 +17,7 @@ if __name__ == '__main__':
     run_config = tf.estimator.RunConfig(model_dir=model_dir)
 
     params = tf.contrib.training.HParams(
-        target_shape=(32, 32, 32),
+        target_shape=(106, 128, 110),
         model_dir=model_dir
     )
 
@@ -25,7 +27,7 @@ if __name__ == '__main__':
                         train_cache_prefix="D:/drive/workspace/marvin/cache_train_hires",
                         eval_src_folder="D:/data/PAC_Data/PAC_data/eval",
                         eval_cache_prefix="D:/drive/workspace/marvin/cache_eval_hires",
-                        batch_size=40
+                        batch_size=4
                         )
 
     # Workaround for cache iterator concurency issues. Iterate over the whole
@@ -44,7 +46,9 @@ if __name__ == '__main__':
         train_dataset = train_dataset.make_one_shot_iterator()
         while True:
             try:
-                features, labels = sess.run(train_dataset.get_next())
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    features, labels = sess.run(train_dataset.get_next())
             except tf.errors.OutOfRangeError:
                 break
     print("Finished preprocessing the training set")
