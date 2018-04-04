@@ -1,7 +1,7 @@
 import os
 import tensorflow as tf
 import models.basic_cnn as model
-from data_io import InputFnFactory
+from data_io import InputFnFactory, _get_data
 import datetime
 
 tf.logging.set_verbosity(tf.logging.INFO)
@@ -10,23 +10,44 @@ if __name__ == '__main__':
     log_dir = "logs"
     current_run_subdir = os.path.join(
         "run_" + datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
-    model_dir = os.path.join(log_dir, model.name, "72x72")#current_run_subdir)
+    model_dir = os.path.join(log_dir, model.name, "106x128x110")#current_run_subdir)
 
     run_config = tf.estimator.RunConfig(model_dir=model_dir)
 
     params = tf.contrib.training.HParams(
-        target_shape=(72, 72, 72),
+        target_shape=(32, 32, 32),
         model_dir=model_dir
     )
 
     ds = InputFnFactory(target_shape=params.target_shape,
                         n_epochs=100,
                         train_src_folder="D:/data/PAC_Data/PAC_data/train",
-                        train_cache_prefix="D:/drive/workspace/marvin/cache_train",
+                        train_cache_prefix="D:/drive/workspace/marvin/cache_train_hires",
                         eval_src_folder="D:/data/PAC_Data/PAC_data/eval",
-                        eval_cache_prefix="D:/drive/workspace/marvin/cache_eval",
-                        batch_size=20
+                        eval_cache_prefix="D:/drive/workspace/marvin/cache_eval_hires",
+                        batch_size=40
                         )
+
+    # Workaround for cache iterator concurency issues. Iterate over the whole
+    # training dataset without counterbalancing to make sure everything is
+    # preprocessed and cached
+    print("Preprocessing the training set")
+    with tf.Session() as sess:
+        train_dataset = _get_data(batch_size=ds.batch_size,
+                                  src_folder=ds.train_src_folder,
+                                  n_epochs=1,
+                                  cache_prefix=ds.train_cache_prefix,
+                                  shuffle=False,
+                                  target_shape=params.target_shape,
+                                  balance_dataset=False)
+
+        train_dataset = train_dataset.make_one_shot_iterator()
+        while True:
+            try:
+                features, labels = sess.run(train_dataset.get_next())
+            except tf.errors.OutOfRangeError:
+                break
+    print("Finished preprocessing the training set")
 
     train_spec = tf.estimator.TrainSpec(input_fn=ds.train_input_fn)
     eval_spec = tf.estimator.EvalSpec(input_fn=ds.eval_input_fn,

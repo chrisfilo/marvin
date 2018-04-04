@@ -21,8 +21,12 @@ def _get_resize_arg(target_shape):
     return target_affine, list(target_shape)
 
 
-def _get_data(nthreads, batch_size, src_folder, n_epochs, cache_prefix,
-              shuffle, target_shape):
+def _get_data(batch_size, src_folder, n_epochs, cache_prefix,
+              shuffle, target_shape, balance_dataset=True, nthreads=None):
+    if nthreads is None:
+        import multiprocessing
+        nthreads = multiprocessing.cpu_count()
+
     in_images = glob(os.path.join(src_folder, "*.nii*"))
     assert len(in_images) != 0
 
@@ -92,15 +96,16 @@ def _get_data(nthreads, batch_size, src_folder, n_epochs, cache_prefix,
     if cache_prefix:
         dataset = dataset.cache(cache_prefix)
 
-    # balance classes
-    dataset = dataset.apply(tf.contrib.data.rejection_resample(lambda _, label: label,
-                                                               [0.5, 0.5]))
-    # see https://stackoverflow.com/a/47056930/616300
-    dataset = dataset.map(lambda _, data: (data))
+    if balance_dataset:
+        # balance classes
+        dataset = dataset.apply(tf.contrib.data.rejection_resample(lambda _, label: label,
+                                                                   [0.5, 0.5]))
+        # see https://stackoverflow.com/a/47056930/616300
+        dataset = dataset.map(lambda _, data: (data))
 
+    dataset = dataset.batch(batch_size)
     if shuffle:
         dataset = dataset.shuffle(buffer_size=100)
-    dataset = dataset.batch(batch_size)
     dataset = dataset.repeat(n_epochs)
     return dataset
 
@@ -109,8 +114,7 @@ class InputFnFactory:
 
     def __init__(self, target_shape, batch_size,
                  n_epochs, train_src_folder,
-                 train_cache_prefix, eval_src_folder, eval_cache_prefix,
-                 nthreads=None):
+                 train_cache_prefix, eval_src_folder, eval_cache_prefix):
         self.target_shape = target_shape
         self.batch_size = batch_size
         self.n_epochs = n_epochs
@@ -118,33 +122,31 @@ class InputFnFactory:
         self.train_cache_prefix = train_cache_prefix
         self.eval_src_folder = eval_src_folder
         self.eval_cache_prefix = eval_cache_prefix
-        if nthreads is None:
-            import multiprocessing
-            self.nthreads = multiprocessing.cpu_count()
-        else:
-            self.nthreads = nthreads
 
-    def _get_iterator(self, cache_prefix, src_folder, shuffle, n_epochs):
-        training_dataset = _get_data(nthreads=self.nthreads,
-                                     batch_size=self.batch_size,
-                                     src_folder=src_folder,
-                                     n_epochs=n_epochs,
-                                     cache_prefix=cache_prefix,
-                                     shuffle=shuffle,
-                                     target_shape=self.target_shape)
+    def _get_iterator(self, cache_prefix, src_folder, shuffle, n_epochs,
+                      balance_dataset):
+        dataset = _get_data(batch_size=self.batch_size,
+                            src_folder=src_folder,
+                            n_epochs=n_epochs,
+                            cache_prefix=cache_prefix,
+                            shuffle=shuffle,
+                            target_shape=self.target_shape,
+                            balance_dataset=balance_dataset)
         # You can use feedable iterators with a variety of different kinds of iterator
         # (such as one-shot and initializable iterators).
-        training_iterator = training_dataset.make_one_shot_iterator()
+        training_iterator = dataset.make_one_shot_iterator()
         return training_iterator.get_next()
 
     def train_input_fn(self):
         return self._get_iterator(cache_prefix=self.train_cache_prefix,
                                   src_folder=self.train_src_folder,
                                   shuffle=True,
-                                  n_epochs=self.n_epochs)
+                                  n_epochs=self.n_epochs,
+                                  balance_dataset=True)
 
     def eval_input_fn(self):
         return self._get_iterator(cache_prefix=self.eval_cache_prefix,
                                   src_folder=self.eval_src_folder,
                                   shuffle=False,
-                                  n_epochs=1)
+                                  n_epochs=1,
+                                  balance_dataset=False)
