@@ -105,8 +105,10 @@ def _get_data(batch_size, src_folder, n_epochs, cache_prefix,
 
     dataset = dataset.batch(batch_size)
     if shuffle:
-        dataset = dataset.shuffle(buffer_size=100)
-    dataset = dataset.repeat(n_epochs)
+        dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=100,
+                                                                   count=n_epochs))
+    else:
+        dataset = dataset.repeat(n_epochs)
     return dataset
 
 

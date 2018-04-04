@@ -33,25 +33,26 @@ if __name__ == '__main__':
     # Workaround for cache iterator concurency issues. Iterate over the whole
     # training dataset without counterbalancing to make sure everything is
     # preprocessed and cached
-    print("Preprocessing the training set")
-    with tf.Session() as sess:
-        train_dataset = _get_data(batch_size=ds.batch_size,
-                                  src_folder=ds.train_src_folder,
-                                  n_epochs=1,
-                                  cache_prefix=ds.train_cache_prefix,
-                                  shuffle=False,
-                                  target_shape=params.target_shape,
-                                  balance_dataset=False)
+    if not os.path.exists(ds.train_cache_prefix + ".index"):
+        print("Preprocessing the training set")
+        with tf.Session() as sess:
+            train_dataset = _get_data(batch_size=ds.batch_size,
+                                      src_folder=ds.train_src_folder,
+                                      n_epochs=1,
+                                      cache_prefix=ds.train_cache_prefix,
+                                      shuffle=False,
+                                      target_shape=params.target_shape,
+                                      balance_dataset=False)
 
-        train_dataset = train_dataset.make_one_shot_iterator()
-        while True:
-            try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    features, labels = sess.run(train_dataset.get_next())
-            except tf.errors.OutOfRangeError:
-                break
-    print("Finished preprocessing the training set")
+            train_dataset = train_dataset.make_one_shot_iterator()
+            while True:
+                try:
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        features, labels = sess.run(train_dataset.get_next())
+                except tf.errors.OutOfRangeError:
+                    break
+        print("Finished preprocessing the training set")
 
     train_spec = tf.estimator.TrainSpec(input_fn=ds.train_input_fn)
     eval_spec = tf.estimator.EvalSpec(input_fn=ds.eval_input_fn,

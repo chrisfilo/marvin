@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-name = "basic_cnn_v10"
+name = "basic_cnn_v15"
 
 # 3D version of https://github.com/aymericdamien/TensorFlow-Examples/blob/master/examples/3_NeuralNetworks/convolutional_network.py
 
@@ -17,7 +17,7 @@ def model_fn(features, labels, mode, params):
     conv1 = tf.layers.max_pooling3d(conv1, 2, 2)
 
     # Convolution Layer with 64 filters and a kernel size of 3
-    conv2 = tf.layers.conv3d(conv1, 32, 5, activation=tf.nn.relu,
+    conv2 = tf.layers.conv3d(conv1, 52, 5, activation=tf.nn.relu,
                              padding='valid')
     conv2 = tf.layers.dropout(conv2, rate=0.3,
                               training=(mode == tf.estimator.ModeKeys.TRAIN))
@@ -28,7 +28,7 @@ def model_fn(features, labels, mode, params):
     fc1 = tf.contrib.layers.flatten(conv2)
 
     # Fully connected layer (in tf contrib folder for now)
-    fc1 = tf.layers.dense(fc1, 100, use_bias=False, bias_initializer=None)
+    fc1 = tf.layers.dense(fc1, 300)
     # Apply Dropout (if is_training is False, dropout is not applied)
     fc1 = tf.layers.dropout(fc1, rate=0.3,
                             training=(mode == tf.estimator.ModeKeys.TRAIN))
